@@ -6,7 +6,7 @@ import plotly.express as px
 import json
 
 # 🔐 secrets.toml 기반 인증 처리
-service_account_info = json.loads(st.secrets["gcp_service_account"])
+service_account_info = json.loads(st.secrets["GOOGLE_CREDS"])
 creds = Credentials.from_service_account_info(service_account_info)
 
 # 설정
