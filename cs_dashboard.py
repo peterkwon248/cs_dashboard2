@@ -7,7 +7,11 @@ import json
 
 # 🔐 secrets.toml 기반 인증 처리
 service_account_info = json.loads(st.secrets["GOOGLE_CREDS"])
-creds = Credentials.from_service_account_info(service_account_info)
+scoped_credentials = Credentials.from_service_account_info(
+    service_account_info,
+    scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
+)
+gc = gspread.authorize(scoped_credentials)
 
 # 설정
 st.set_page_config(page_title="📊 구글 시트 대시보드", layout="wide")
@@ -19,7 +23,6 @@ sheet_url = st.text_input("📎 구글 시트 링크를 입력하세요:")
 if sheet_url:
     try:
         # 구글 시트 열기
-        gc = gspread.authorize(creds)
         sheet_id = sheet_url.split("/d/")[1].split("/")[0]
         sh = gc.open_by_key(sheet_id)
         sheet_names = [ws.title for ws in sh.worksheets()]
@@ -72,19 +75,16 @@ if sheet_url:
 
             # 📊 고급 차트
             if "수량" in df.columns and pd.api.types.is_numeric_dtype(df["수량"]):
-                # 1️⃣ 시트별 처리방식 바 차트
                 st.markdown("### 📊 시트별 처리방식 수량")
                 chart_data = df.groupby(["시트이름", "처리방식"])["수량"].sum().reset_index()
                 fig = px.bar(chart_data, x="처리방식", y="수량", color="시트이름", barmode="group", title="시트별 처리방식별 수량")
                 st.plotly_chart(fig, use_container_width=True)
 
-                # 2️⃣ 모델명 Top 10
                 st.markdown("### 📦 수량 기준 Top 10 모델")
                 top_models = df.groupby("모델명")["수량"].sum().nlargest(10).reset_index()
                 fig_top = px.bar(top_models, x="모델명", y="수량", title="Top 10 모델명 by 수량")
                 st.plotly_chart(fig_top, use_container_width=True)
 
-                # 3️⃣ 처리방식 비율 비교 (수량 vs 건수)
                 st.markdown("### 🥧 처리방식별 비율 비교")
                 col1, col2 = st.columns(2)
 
@@ -101,7 +101,6 @@ if sheet_url:
                     fig_pie_count = px.pie(pie_data_count, values="건수", names="처리방식", title="건수 기준 비율")
                     st.plotly_chart(fig_pie_count, use_container_width=True)
 
-                # 4️⃣ 히트맵
                 st.markdown("### 🔥 시트별 처리방식별 수량 Heatmap")
                 pivot = df.pivot_table(index="처리방식", columns="시트이름", values="수량", aggfunc="sum").fillna(0)
                 fig_heat = px.imshow(pivot, text_auto=True, title="시트-처리방식별 수량 Heatmap")
